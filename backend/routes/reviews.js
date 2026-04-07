@@ -1,34 +1,20 @@
 const express = require("express");
 const router = express.Router();
-const db = require("../db");
+const { getDB } = require("../db");
 
 const VALID_REGIONS = [
-  "All",
-  "Asia",
-  "America",
-  "Africa",
-  "Australia",
-  "Europe",
-  "Russia",
-  "India",
-  "Middle East",
-  "Latin America",
-  "Global",
+  "Asia","America","Africa","Australia","Europe",
+  "Russia","India","Middle East","Latin America","Global",
 ];
 
 const VALID_SORT = ["newest", "top_rated", "most_liked"];
 
 // GET /api/reviews
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const {
-      region = "All",
-      sort = "newest",
-      brand,
-      page = 1,
-      limit = 10,
-      search,
-    } = req.query;
+    const db = getDB();
+
+    const {region = "All", sort = "newest", brand, page = 1, limit = 10, search} = req.query;
 
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(50, Math.max(1, parseInt(limit)));
@@ -36,22 +22,26 @@ router.get("/", (req, res) => {
 
     let whereClauses = [];
     let params = [];
+    let index = 1;
 
     if (region && region !== "All") {
-      whereClauses.push("r.region = ?");
+      whereClauses.push(`r.region = $${index++}`);
       params.push(region);
     }
 
     if (brand) {
-      whereClauses.push("LOWER(r.brand_name) LIKE LOWER(?)");
+      whereClauses.push(`LOWER(r.brand_name) LIKE LOWER($${index++})`);
       params.push(`%${brand}%`);
     }
 
     if (search) {
       whereClauses.push(
-        "(LOWER(r.title) LIKE LOWER(?) OR LOWER(r.content) LIKE LOWER(?) OR LOWER(r.brand_name) LIKE LOWER(?))"
+        `(LOWER(r.title) LIKE LOWER($${index}) 
+        OR LOWER(r.content) LIKE LOWER($${index + 1}) 
+        OR LOWER(r.brand_name) LIKE LOWER($${index + 2}))`
       );
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      index += 3;
     }
 
     const whereSQL =
@@ -64,25 +54,35 @@ router.get("/", (req, res) => {
     };
     const orderSQL = sortMap[sort] || sortMap.newest;
 
-    const countStmt = db.prepare(
-      `SELECT COUNT(*) as total FROM reviews r ${whereSQL}`
-    );
-    const { total } = countStmt.get(...params);
+    // COUNT
+    const countQuery = `
+      SELECT COUNT(*) AS total 
+      FROM reviews r 
+      ${whereSQL}
+    `;
+    const countRes = await db.query(countQuery, params);
+    const total = Number(countRes.rows[0].total);
 
-    const reviewsStmt = db.prepare(`
+    // DATA
+    const reviewsQuery = `
       SELECT 
         r.id, r.username, r.brand_name, r.title, r.content,
         r.rating, r.region, r.likes, r.created_at
       FROM reviews r
       ${whereSQL}
       ORDER BY ${orderSQL}
-      LIMIT ? OFFSET ?
-    `);
-    const reviews = reviewsStmt.all(...params, limitNum, offset);
+      LIMIT $${index++} OFFSET $${index++}
+    `;
+
+    const reviewsRes = await db.query(reviewsQuery, [
+      ...params,
+      limitNum,
+      offset,
+    ]);
 
     res.json({
       success: true,
-      data: reviews,
+      data: reviewsRes.rows,
       pagination: {
         total,
         page: pageNum,
@@ -90,45 +90,51 @@ router.get("/", (req, res) => {
         totalPages: Math.ceil(total / limitNum),
       },
     });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: "Failed to fetch reviews" });
   }
 });
 
-// GET /api/reviews/:id
-router.get("/:id", (req, res) => {
-  try {
-    const review = db
-      .prepare(
-        `SELECT r.id, r.username, r.brand_name, r.title, r.content, r.rating, r.region, r.likes, r.created_at
-       FROM reviews r WHERE r.id = ?`
-      )
-      .get(req.params.id);
 
-    if (!review) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Review not found" });
+// GET /api/reviews/:id
+router.get("/:id", async (req, res) => {
+  try {
+    const db = getDB();
+
+    const result = await db.query(
+      `SELECT id, username, brand_name, title, content, rating, region, likes, created_at
+       FROM reviews WHERE id = $1`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Review not found",
+      });
     }
 
-    res.json({ success: true, data: review });
+    res.json({ success: true, data: result.rows[0] });
+
   } catch (err) {
     res.status(500).json({ success: false, error: "Failed to fetch review" });
   }
 });
 
+
 // POST /api/reviews
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   try {
+    const db = getDB();
     const { username, brand_name, title, content, rating, region } = req.body;
 
     // Validation
     const errors = [];
     if (!username || username.trim().length < 2)
       errors.push("Username must be at least 2 characters");
-    if (!brand_name || brand_name.trim().length < 1)
-      errors.push("Brand name is required");
+    if (!brand_name) errors.push("Brand name is required");
     if (!title || title.trim().length < 5)
       errors.push("Title must be at least 5 characters");
     if (!content || content.trim().length < 20)
@@ -143,88 +149,122 @@ router.post("/", (req, res) => {
     }
 
     // Find or create brand
-    let brand = db
-      .prepare("SELECT id FROM brands WHERE LOWER(name) = LOWER(?)")
-      .get(brand_name.trim());
-    if (!brand) {
-      const result = db
-        .prepare(
-          "INSERT INTO brands (name, slug, category) VALUES (?, ?, 'standard')"
-        )
-        .run(
+    let brandRes = await db.query(
+      "SELECT id FROM brands WHERE LOWER(name) = LOWER($1)",
+      [brand_name.trim()]
+    );
+
+    let brandId;
+
+    if (brandRes.rows.length === 0) {
+      const insertBrand = await db.query(
+        `INSERT INTO brands (name, slug, category) 
+         VALUES ($1, $2, 'standard') 
+         RETURNING id`,
+        [
           brand_name.trim(),
-          brand_name.trim().toLowerCase().replace(/\s+/g, "-")
-        );
-      brand = { id: result.lastInsertRowid };
+          brand_name.trim().toLowerCase().replace(/\s+/g, "-"),
+        ]
+      );
+      brandId = insertBrand.rows[0].id;
+    } else {
+      brandId = brandRes.rows[0].id;
     }
 
-    const result = db
-      .prepare(
-        `INSERT INTO reviews (username, brand_id, brand_name, title, content, rating, region)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(
+    // Insert review
+    const insertReview = await db.query(
+      `INSERT INTO reviews 
+      (username, brand_id, brand_name, title, content, rating, region)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      RETURNING *`,
+      [
         username.trim(),
-        brand.id,
+        brandId,
         brand_name.trim(),
         title.trim(),
         content.trim(),
         parseInt(rating),
-        region
-      );
+        region,
+      ]
+    );
 
-    const newReview = db
-      .prepare("SELECT * FROM reviews WHERE id = ?")
-      .get(result.lastInsertRowid);
-    res
-      .status(201)
-      .json({ success: true, data: newReview, message: "Review posted!" });
+    res.status(201).json({
+      success: true,
+      data: insertReview.rows[0],
+      message: "Review posted!",
+    });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: "Failed to post review" });
   }
 });
 
+
 // POST /api/reviews/:id/like
-router.post("/:id/like", (req, res) => {
+router.post("/:id/like", async (req, res) => {
   try {
+    const db = getDB();
     const reviewId = parseInt(req.params.id);
     const ip =
-      req.ip || req.connection.remoteAddress || req.headers["x-forwarded-for"];
+      req.ip || req.headers["x-forwarded-for"] || "unknown";
 
-    const existing = db
-      .prepare(
-        "SELECT id FROM review_likes WHERE review_id = ? AND ip_address = ?"
-      )
-      .get(reviewId, ip);
+    const existing = await db.query(
+      `SELECT id FROM review_likes 
+       WHERE review_id = $1 AND ip_address = $2`,
+      [reviewId, ip]
+    );
 
-    if (existing) {
+    if (existing.rows.length > 0) {
       // Unlike
-      db.prepare(
-        "DELETE FROM review_likes WHERE review_id = ? AND ip_address = ?"
-      ).run(reviewId, ip);
-      db.prepare("UPDATE reviews SET likes = MAX(0, likes - 1) WHERE id = ?").run(reviewId);
-      const review = db
-        .prepare("SELECT likes FROM reviews WHERE id = ?")
-        .get(reviewId);
+      await db.query(
+        `DELETE FROM review_likes 
+         WHERE review_id = $1 AND ip_address = $2`,
+        [reviewId, ip]
+      );
+
+      await db.query(
+        `UPDATE reviews 
+         SET likes = GREATEST(0, likes - 1) 
+         WHERE id = $1`,
+        [reviewId]
+      );
+
+      const result = await db.query(
+        "SELECT likes FROM reviews WHERE id = $1",
+        [reviewId]
+      );
+
       return res.json({
         success: true,
         liked: false,
-        likes: review.likes,
+        likes: Number(result.rows[0].likes),
       });
     }
 
     // Like
-    db.prepare(
-      "INSERT INTO review_likes (review_id, ip_address) VALUES (?, ?)"
-    ).run(reviewId, ip);
-    db.prepare("UPDATE reviews SET likes = likes + 1 WHERE id = ?").run(
-      reviewId
+    await db.query(
+      `INSERT INTO review_likes (review_id, ip_address) 
+       VALUES ($1, $2)`,
+      [reviewId, ip]
     );
-    const review = db
-      .prepare("SELECT likes FROM reviews WHERE id = ?")
-      .get(reviewId);
-    res.json({ success: true, liked: true, likes: review.likes });
+
+    await db.query(
+      `UPDATE reviews SET likes = likes + 1 WHERE id = $1`,
+      [reviewId]
+    );
+
+    const result = await db.query(
+      "SELECT likes FROM reviews WHERE id = $1",
+      [reviewId]
+    );
+
+    res.json({
+      success: true,
+      liked: true,
+      likes: Number(result.rows[0].likes),
+    });
+
   } catch (err) {
     res.status(500).json({ success: false, error: "Failed to like review" });
   }

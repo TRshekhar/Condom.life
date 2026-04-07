@@ -1,10 +1,15 @@
 const express = require("express");
 const cors = require("cors");
+const { connectToDB } = require("./db");
 const rateLimit = require("express-rate-limit");
 
 const reviewsRouter = require("./routes/reviews");
 const brandsRouter = require("./routes/brands");
 const statsRouter = require("./routes/stats");
+
+const startServer = async () => {
+  await connectToDB();
+};
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -68,3 +73,5 @@ app.listen(PORT, () => {
   console.log(`\n🟢 condom.life API running on http://localhost:${PORT}`);
   console.log(`   Health check: http://localhost:${PORT}/api/health\n`);
 });
+
+startServer();

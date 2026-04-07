@@ -10,9 +10,7 @@ import Stats from "./pages/Stats";
 export default function App() {
   return (
     <Router>
-      <Toaster
-        position="top-center"
-        toastOptions={{
+      <Toaster position="top-center" toastOptions={{
           style: {
             fontFamily: "'DM Sans', sans-serif",
             background: "#1a1a1a",
