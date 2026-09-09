@@ -3,15 +3,46 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#e8526a" />
-    <meta
-      name="description"
-      content="condom.life — The world's most honest condom review platform. Share your experience, rate your favourite brand, and discover what people in your region are using."
-    />
-    <meta property="og:title" content="condom.life — Real Reviews, Real People" />
-    <meta property="og:description" content="Share your honest opinion about protection. Filter by region. Read what the world thinks." />
-    <title>condom.life — Real Reviews, Real People</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♡</text></svg>" />
+    <meta name="theme-color" content="#1e40af" />
+    
+    <!-- Will be overridden by React Helmet for specific pages -->
+    <meta name="description" content="Read honest reviews and ratings of condom brands from users worldwide. Find the best condoms based on comfort, reliability, and user experiences. No login required." />
+    <meta name="keywords" content="condom reviews, condom ratings, best condoms, condom comparison, safe sex, sexual health" />
+    
+    <!-- Favicon -->
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+    <!-- Google Site Verification -->
+    <meta name="google-site-verification" content="YOUR_VERIFICATION_CODE_HERE" />
+    
+    <!-- Bing Site Verification -->
+    <meta name="msvalidate.01" content="YOUR_BING_VERIFICATION_CODE" />
+    
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <link rel="preconnect" href="https://www.google-analytics.com" />
+    
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=%REACT_APP_GA4_MEASUREMENT_ID%"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '%REACT_APP_GA4_MEASUREMENT_ID%', {
+        send_page_view: false // We'll handle this in React
+      });
+    </script>
+    
+    <title>Condom.life - Rate & Review Condoms | Global Community Reviews</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

@@ -1,4 +1,4 @@
-# condom.life 🌐
+# condom.life
 
 > The world's most honest public opinion platform for protection reviews.
 
@@ -8,15 +8,27 @@ A full-stack web application where users can:
 - **Browse brands** with community ratings and review counts
 - **Like reviews** from other users
 - **View global insights** — top brands, region breakdown, platform stats
+<a href="https://www.condom.life">Go live</a>
 
 ---
+
+# Interface 
+
+### Home
+![Home](./frontend/public/images/Home.png)
+
+### Brands
+![Brands](./frontend/public/images/brand.png)
+
+### Insights
+![Insights](./frontend/public/images/Insight.png)
 
 ## Tech Stack
 
 | Layer     | Technology                             |
 |-----------|----------------------------------------|
 | Backend   | Node.js + Express                      |
-| Database  | SQLite via `better-sqlite3`            |
+| Database  | Database | PostgreSQL (Supabase)       |
 | Frontend  | React 18 + React Router v6             |
 | Styling   | Tailwind CSS + Custom CSS              |
 | Fonts     | Playfair Display + DM Sans (Google)    |
@@ -190,19 +202,19 @@ CREATE TABLE review_likes (
 
 ## Features
 
-- ✅ **Region-based filtering** — filter reviews by geographic region
-- ✅ **Sort options** — Newest, Top Rated, Most Liked
-- ✅ **Search** — across brand name, title, and content
-- ✅ **Star ratings** — interactive 1–5 star input and display
-- ✅ **Like system** — IP-based (one like per user per review, toggleable)
-- ✅ **Brand directory** — filterable by category with avg. ratings
-- ✅ **Global insights** — top brands, region heatmap, platform metrics
-- ✅ **Rate limiting** — 200 req/15min global, 10 reviews/hour write
-- ✅ **Seeded data** — 8 sample reviews from across the globe
-- ✅ **15 pre-seeded brands** — Durex, Trojan, Skyn, Okamoto, and more
-- ✅ **Pagination** — 9 reviews per page
-- ✅ **Loading skeletons** — smooth UX during data fetching
-- ✅ **Mobile responsive** — works on all screen sizes
+- **Region-based filtering** — filter reviews by geographic region
+- **Sort options** — Newest, Top Rated, Most Liked
+- **Search** — across brand name, title, and content
+- **Star ratings** — interactive 1–5 star input and display
+- **Like system** — IP-based (one like per user per review, toggleable)
+- **Brand directory** — filterable by category with avg. ratings
+- **Global insights** — top brands, region heatmap, platform metrics
+- **Rate limiting** — 200 req/15min global, 10 reviews/hour write
+- **Seeded data** — 8 sample reviews from across the globe
+- **15 pre-seeded brands** — Durex, Trojan, Skyn, Okamoto, and more
+- **Pagination** — 9 reviews per page
+- **Loading skeletons** — smooth UX during data fetching
+- **Mobile responsive** — works on all screen sizes
 
 ---
 

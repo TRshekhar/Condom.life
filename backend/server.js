@@ -15,12 +15,47 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ── Middleware ────────────────────────────────────────────────────────────────
+const allowedOrigins = [
+  process.env.ALLOWED_ORIGIN, // your custom domain
+];
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: function (origin, callback) {
+      // allow requests with no origin (Postman, mobile apps)
+      if (!origin) return callback(null, true);
+
+      // allow your custom domain
+      if (origin === "https://condom.life") {
+        return callback(null, true);
+      }
+
+      // allow www version
+      if (origin === "https://www.condom.life") {
+        return callback(null, true);
+      }
+
+      // allow localhost (development)
+      if (origin.includes("localhost")) {
+        return callback(null, true);
+      }
+
+      // allow your main domain
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // allow all vercel preview domains
+      if (origin.endsWith(".vercel.app")) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
+
 app.use(express.json({ limit: "10kb" }));
 app.set("trust proxy", 1);
 
